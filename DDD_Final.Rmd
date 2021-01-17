@@ -1,0 +1,839 @@
+---
+title: "DDD Final"
+author: "Amouki Kaayou"
+date: "1/16/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# DDD Final Project(Amouki Kaayou)
+
+## 1. Introduction
+
+  Here is my Markdown Final Project for DDD (Winter 2021). The data analyzed is the "Yearbook of Immigration of 2019", a collection of excel files reporting numbers regarding immigration both for the Fiscal year 2019, but also throughout the years up until 2019. The entire yearbook consists of 41 tables which can be split in 5 categories
+  * Lawful PErmanent Residents
+  * Refugees and Asylees
+  * Naturalization
+  * Non-immigrants (Visa recipients)
+  * 'Aliens' and Law Enforcement
+  The data can be retrieved at the following link (https://www.dhs.gov/immigration-statistics/yearbook/2019)
+I selected this data because I had wanted to use it in the past but was unable/too lazy to go through all files and edit them. 
+  I will fist analyze the data spanning 19 years (from 2000 to 2019) in order to see if a change in administration (Republican vs Democrats) affects immigration numbers in any way. Then I will analyse some of the data in regard to numbers by country of provenance over the span of 10 years (2010 to 2019) to see if there has been any recent changes in immigration fluxes in regard to the last 2 presidents.
+
+
+## 1. Required packages and loading data
+
+```{r Package loading, eval=FALSE}
+
+#There are the packages that will be needed to call the different functions used throughout the Mardkown
+
+library(tidyverse)
+library(readxl)
+library(reader)
+library(readr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(pander)
+library(gt)
+
+```
+
+## 1. Data Cleaning 
+###  1. Variable Selection and Creation
+
+  After loading all tables, I viewed each one of them one by one and separated the tables that only pertained to the fiscal year as they would not offer a lot to analyse since all tables have strictly numeric values. After settling down on the datasets I wanted to use, I nested them in variables that would be easier to manipulate
+
+
+```{r Variable Selection and Creation, eval=FALSE}
+
+#Lawful Permanent Residents Data
+
+lpr_genX <- read_excel("fy2019_table1.xlsx")
+lpr_ByLastRegionResidenceX <- read_excel("fy2019_table2.xlsx")
+lpr_ByRegionBirthX <- read_excel("fy2019_table3d.xlsx")
+lpr_ByRegionResidence <- read_excel("fy2019_table4.xlsx")
+lpr_ByCBSAREsidence <- read_excel("fy2019_table5.xlsx")
+lpr_ByMajorClass <- read_excel("fy2019_table6.xlsx")
+
+
+#Refugees and Asylees Data
+
+ref_arrivals <- read_excel("fy2019_table13.xlsx")
+ref_arr_ByNationality <- read_excel("fy2019_table14d.xlsx")
+ref_asyl_grantedAD <- read_excel("fy2019_table16.xlsx")
+ref_asyl_grantedA_ByNationality <- read_excel("fy2019_table17d.xlsx")
+ref_asyl_grantedD_ByNationality <- read_excel("fy2019_table19d.xlsx")
+
+
+#Naturalization Data
+
+nat_gen <- read_excel("fy2019_table20.xlsx")
+nat_ByRegionBirth <- read_excel("fy2019_table21d.xlsx")
+nat_ByRegionResidence <- read_excel("fy2019_table22.xlsx")
+nat_ByCBSAResidence <- read_excel("fy2019_table23.xlsx")
+
+
+#Non-immigrants (Visa Recipients) Data
+
+nonimg_ByClass <- read_excel("fy2019_table25d.xlsx")
+nonimg_ByRegionCitizenship <- read_excel("fy2019_table26.xlsx")
+nonimg_ByRegionResidence <- read_excel("fy2019_table27d.xlsx")
+
+#'Aliens' and Law Enforcement Data
+
+aliens_appreh <- aliens_gen <- read_excel("fy2019_table33.xlsx")
+aliens_appreh_ByRegionNat  <- read_excel("fy2019_table34d.xlsx")
+aliens_appreh_ByJuris <- read_excel("fy2019_table35.xlsx")
+aliens_inadmin <- read_excel("fy2019_table36.xlsx")
+aliens_inadmin_ByRegionNat <- read_excel("fy2019_table37d.xlsx")
+aliens_inadmin_ByFieldOffice <- read_excel("fy2019_table38.xlsx")
+aliens_remov <- read_excel("fy2019_table39.xlsx")
+aliens_remov_ByRegionNat <- read_excel("fy2019_table40d.xlsx")
+aliens_remov_byCrimS_RegionNat <- read_excel("fy2019_table41d.xlsx")
+
+```
+
+###  1. Data Cleaning: By year
+  
+  After that I started working on the data, I first too kthe data sets that had data spanning over 20 years and started cleaning them. This si the data I wil use to build graphs over time. 
+
+```{r Data Cleaning for datasets with years, eval=FALSE}
+
+#Lawful Permanent Residents Data
+#LPR Status granted from 2000 to 2019
+lpr_genX <- read_excel("fy2019_table1.xlsx")
+lpr1 <- lpr_genX
+lpr1 <- lpr1[-c(1:33,54,55), -c(1:6)]
+colnames(lpr1) <- c("Year","People Obtaining LPR Status")
+lpr1$`People Obtaining LPR Status` <- as.numeric(lpr1$`People Obtaining LPR Status`)
+LPR_years <- lpr1
+
+
+#Refugees and Asylees Data
+#Refugee Arrivals from 2000 to 2019
+ref_arrivals <- read_excel("fy2019_table13.xlsx")
+ref1 <- ref_arrivals
+colnames(ref1) <- c("Year","Refugee Arrivals")
+ref1$`Refugee Arrivals` <- as.numeric(ref1$`Refugee Arrivals`)
+ref1 <- ref1[-c(1:23,44,45), ]
+
+#Asylums granted from 2000 to 2019
+ref_asyl_grantedAD <- read_excel("fy2019_table16.xlsx")
+ref3 <- ref_asyl_grantedAD
+colnames(ref3) <- c("Year","Total Asylums Granted","Asylums Granted Affirmatvely","Asylums Granted Defensively")
+ref3$`Total Asylums Granted` <- as.numeric(ref3$`Total Asylums Granted`)
+ref3$`Asylums Granted Affirmatvely` <- as.numeric(ref3$`Asylums Granted Affirmatvely`)
+ref3$`Asylums Granted Defensively` <- as.numeric(ref3$`Asylums Granted Defensively`)
+ref3 <- ref3[-c(1:13,34),]
+
+
+#Naturalization Data
+##Naturalization petitions filled, granted and denied from 2000 to 2019
+nat_gen <- read_excel("fy2019_table20.xlsx")
+nat1 <- nat_gen
+colnames(nat1) <- c("Year","Petitions Filled"," Total Persons Naturalized","Civilians Naturalized","Military Naturalized", "Not Reported","Petitions Denied")
+nat1 <- nat1[-c(1:98,119:124),]
+NAT_years <- nat1
+
+
+#'Aliens' and Law Enforcement Data
+#'Aliens' apprehended from 2000 to 2019
+aliens_appreh <- aliens_gen <- read_excel("fy2019_table33.xlsx")
+enf1 <- aliens_appreh
+colnames(enf1) <- c("X","Y","Year","Aliens Apprehended")
+enf1 <- enf1[-c(1:22,43:65), -c(1,2)]
+enf1$Year[9]=2008
+enf1$Year[10]=2009
+enf1$Year[17]=2016
+
+#'Aliens' deemed inadmissible from 2000 to 2019
+aliens_inadmin <- read_excel("fy2019_table36.xlsx")
+enf4 <- aliens_inadmin
+colnames(enf4) <- c("Year","Aliens Determined Inadmissible")
+enf4 <- enf4[-c(1:3,19,20),]
+enf4.new <- data.frame(c(2000, 2001, 2002, 2003, 2004),c("NA", "NA", "NA", "NA","NA"))
+colnames(enf4.new) <- c("Year","Aliens Determined Inadmissible")
+enf4 <- rbind(enf4,enf4.new)
+enf4 <- enf4 %>% dplyr::arrange(Year)
+
+#'Aliens' removed from 2000 to 2019
+aliens_remov <- read_excel("fy2019_table39.xlsx")
+enf7 <-aliens_remov
+colnames(enf7) <- c("Year","Aliens Removals","Aliens Returned")
+enf7 <- enf7[-c(1:111,132:137),]
+enf7$Year[17]=2016
+
+```
+
+  After the datasets were cleaned, I looked at those that were in the same area and merged them so the data would be centralized.
+
+```{r Data merging for datsets with years, eval=FALSE}
+#Refugees and Asylees Data
+#Merging data on Refugees and Asylums for the 2000-2019 period
+REF_years <- merge(ref1, ref3, by = "Year")
+
+
+#'Aliens' and Law Enforcement Data
+#Merging data on 'aliens' for the 2000-2019 period
+ENF_years <- merge(enf1, enf4,by = "Year")
+ENF_years <- merge(ENF_years, enf7, by = "Year")
+ENF_years$`Aliens Apprehended` <- as.numeric(ENF_years$`Aliens Apprehended`)
+ENF_years$`Aliens Determined Inadmissible` <- as.numeric(ENF_years$`Aliens Determined Inadmissible`)
+ENF_years$`Aliens Removals` <- as.numeric(ENF_years$`Aliens Removals`)
+ENF_years$`Aliens Returned` <- as.numeric(ENF_years$`Aliens Returned`)
+
+```
+
+###  1. Data Cleaning: By State
+  
+  After I started working on the datasets that included data in relation of years (2010 to 2019) and regions, I sorted those datasets in two groups. We first have one small group of datasets that were about Region of Residence and only included US States:
+
+```{r Data Cleaning for datasets with states, eval=FALSE}
+
+#Lawful Permanent Residents Data
+#LPR Status Granted by State of Residency from 2010 to 2019
+#This code sorts the data by State
+lpr_ByRegionResidence <- read_excel("fy2019_table4.xlsx")
+lpr4 <- lpr_ByRegionResidence
+lpr4 <- lpr4[-c(1,2,60:62), ]
+lpr4t <- lpr4
+lpr4t <- lpr4t[-c(1,2,60:62), ]
+names_lpr4t <- lpr4t[1,]
+colnames(lpr4t) <- names_lpr4t
+lpr4t <- lpr4t[-c(1),]
+LPR_state_table <- lpr4t
+#This code sorts the data by Year
+lpr_ByRegionResidence <- read_excel("fy2019_table4.xlsx")
+lpr4x <- lpr_ByRegionResidence
+lpr4x <- lpr4x[-c(1,2,60:62), ]
+names1 <- lpr4x$`Table 4.`
+lpr4x <- lpr4x[,-c(1)]
+lpr4x <- t(lpr4x)
+colnames(lpr4x) <- names1
+colnames(lpr4x)[1] <- "Year"
+colnames(lpr4x)[56] <- "Other"
+lpr4x[lpr4x=="-"]<-0
+
+
+#Naturalization Data
+#Naturalization granted by State of Residence from 2010 to 2019
+#This code sorts the data by State
+nat_ByRegionResidence <- read_excel("fy2019_table22.xlsx")
+nat3 <- nat_ByRegionResidence
+nat3 <- nat3[-c(1,2,60:62), ]
+nat3t <- nat3
+names_nat3t <- nat3t[1,]
+colnames(nat3t) <- names_nat3t
+nat3t <- nat3t[-c(1),]
+NAT_state_table <- nat3t
+#This code sorts the data by Year
+nat_ByRegionResidence <- read_excel("fy2019_table22.xlsx")
+nat3x <- nat_ByRegionResidence
+nat3x <- nat3[-c(1,2,60:62), ]
+names2 <- nat3x$`Table 22.`
+nat3x <- nat3x[,-c(1)]
+nat3x <- t(nat3x)
+colnames(nat3x) <- names2
+colnames(nat3x)[1] <- "Year"
+colnames(lpr4x)[56] <- "Other"
+
+```
+
+###  1. Data Cleaning: By Country/Continent
+  The second group includes the datasets that included either Region of Nationality or Provenance, which included both Continents and/or countries.
+
+```{r Data Cleaning for satasets with Countries and Continents, eval=FALSE}
+
+#Lawful Permanent Residents Data
+#LPR Status by Last Country of Residence from 2010 to 2019
+#This code sorts it by Year
+lpr_ByLastRegionResidenceX <- read_excel("fy2019_table2.xlsx")
+lpr2x <- lpr_ByLastRegionResidenceX
+lpr2x <- lpr2x[-c(1:2,92:115), -c(2:20)]
+names <- lpr2x$`Table 2.`
+lpr2x <- lpr2x[,-c(1)]
+lpr2x <- t(lpr2x)
+colnames(lpr2x) <- names
+colnames(lpr2x)[1] <- "Year"
+lpr2x <- lpr2x[,-c(4,18,62)]
+colnames(lpr2x)[4] <- "Austria"
+colnames(lpr2x)[5] <- "Hungary"
+colnames(lpr2x)[17] <- "Norway"
+colnames(lpr2x)[18] <- "Sweden"
+lpr2x[lpr2x=="-"]<-0
+#This code sorts it by Regions
+lpr_ByLastRegionResidenceX <- read_excel("fy2019_table2.xlsx")
+lpr2 <- lpr_ByLastRegionResidenceX
+lpr2 <- lpr2[-c(1:2,92:115), -c(2:20)]
+lpr2t <- lpr2
+names_lpr2t <- lpr2t[1,]
+colnames(lpr2t) <- names_lpr2t
+lpr2t <- lpr2t[-c(1),]
+lpr2t[4,1] <- "Austria"
+lpr2t[5,1] <- "Hungary"
+lpr2t[18,1] <- "Norway"
+lpr2t[19,1] <- "Sweden"
+lpr2t <- lpr2t[-c(3,17),]
+lpr2t[lpr2t=="X"]<-"NA"
+lpr2t[lpr2t=="D"]<-"witheld"
+lpr2t[lpr2t=="-"]<-"0"
+as.factor(lpr2t$`Region and country of last residence`)
+levels(lpr2t$`Region and country of last residence`) <- c("Europe","Asia","America","Central America","South America","Africa","Oceania")
+lpr2t$`Region and country of last residence`[3:26] <- "Europe"
+lpr2t$`Region and country of last residence`[28:41] <- "Asia"
+lpr2t$`Region and country of last residence`[43:50] <- "America"
+lpr2t$`Region and country of last residence`[52:59] <- "Central America"
+lpr2t$`Region and country of last residence`[61:73] <- "South America"
+lpr2t$`Region and country of last residence`[74] <- "America"
+lpr2t$`Region and country of last residence`[76:81] <- "Africa"
+lpr2t$`Region and country of last residence`[83:85] <- "Oceania"
+LPR_LastResidence_table <- lpr2t
+#This code sorts it by continent
+LPR_REGION_continent <- LPR_REGION_table %>% slice(1,2,27,42,51,60,75,82)
+#This code sorts it by country
+LPR_REGION_country <- LPR_REGION_table %>% slice(3:26,28:41,43:50,52:59,61:74,76:81,83:85)
+
+#LPR Status by Country of Birth from 2010 to 2019
+#This code sorts it by Year
+lpr_ByRegionBirthX <- read_excel("fy2019_table3d.xlsx")
+lpr3x <- lpr_ByRegionBirthX
+lpr3x <- lpr3x[-c(1:2,219:224),]
+names3 <- lpr3x$`Table 3.`
+lpr3x <- lpr3x[,-c(1)]
+lpr3x <- t(lpr3x)
+colnames(lpr3x) <- names3
+colnames(lpr3x)[1] <- "Year"
+lpr3x <- lpr3x[,-c(2,11)]
+lpr3x[lpr3x=="X"]<-"NA"
+lpr3x[lpr3x=="D"]<-"witheld"
+lpr3x[lpr3x=="-"]<-0
+#This code sorts it by Regions
+lpr_ByRegionBirthX <- read_excel("fy2019_table3d.xlsx")
+lpr3t <- lpr_ByRegionBirthX
+lpr3t <- lpr3t[-c(1:2,219:224),]
+names_lpr3t <- lpr3t[1,]
+colnames(lpr3t) <- names_lpr3t
+lpr3t <- lpr3t[-c(1),]
+lpr3t <- lpr3t[-c(1,10),]
+lpr3t[lpr3t=="X"]<-"NA"
+lpr3t[lpr3t=="D"]<-"witheld"
+lpr3t[lpr3t=="-"]<-"0"
+lpr3t[1,1] <- "Total Continent"
+lpr3t[9,1] <- "Total Country"
+as.factor(lpr3t$`Region and country of birth`)
+levels(lpr3t$`Region and country of birth`) <- c("Continent","Country")
+lpr3t$`Region and country of birth`[1:8] <- "Continent"
+lpr3t$`Region and country of birth`[9:213] <- "Country"
+LPR_Birth_table <- lpr3t
+#This code sorts it by continent
+LPR_Birth_continent <- LPR_Birth_table %>% slice(1:8)
+#This code sorts it by country
+LPR_Birth_country <- LPR_Birth_table %>% slice(9:213)
+
+
+#Refugees and Asylees Data
+#Refugee Arrivals by Nationality from 2010 to 2019
+#This code sorts it by years
+ref_arr_ByNationality <- read_excel("fy2019_table14d.xlsx")
+ref2x <- ref_arr_ByNationality
+ref2x <- ref2x[-c(1,2,4,10,76:82), ]
+names_ref2x <- ref2x$`Table 14.`
+ref2x <- ref2x[,-c(1)]
+ref2x <- t(ref2x)
+colnames(ref2x) <- names_ref2x
+colnames(ref2x)[1] <- "Year"
+colnames(ref2x)[70] <- "All Other Countries"
+colnames(ref2x)[71] <- "Unknown"
+ref2x[ref2x=="X"]<-"NA"
+ref2x[ref2x=="D"]<-"witheld"
+ref2x[ref2x=="-"]<-0
+#This code sorts it by Regions
+ref_arr_ByNationality <- read_excel("fy2019_table14d.xlsx")
+ref2t <- ref_arr_ByNationality
+ref2t <- ref2t[-c(1,2,4,10,76:82), ]
+names_ref2t <- ref2t[1,]
+colnames(ref2t) <- names_ref2t
+ref2t <- ref2t[-c(1,9),]
+ref2t[ref2t=="X"]<-"NA"
+ref2t[ref2t=="D"]<-"witheld"
+ref2t[ref2t=="-"]<-"0"
+ref2t[1,1] <- "Total Continent"
+ref2t[9,1] <- "Total Country"
+ref2t <- ref2t[-c(8,9), ]
+as.factor(ref2t$`Region and country of nationality`)
+levels(ref2t$`Region and country of nationality`) <- c("Continent","Country")
+ref2t$`Region and country of nationality`[1:7] <- "Continent"
+ref2t$`Region and country of nationality`[8:69] <- "Country"
+REF_Nationality_table <- ref2t
+#This code sorts it by continent
+REF_Nat_continent <- REF_Nationality_table %>% slice(1:7)
+#This code sorts it by country
+REF_Nat_country <- REF_Nationality_table %>% slice(8:69)
+
+#Affirmative Asylums granted by Nationality from 2010 to 2019
+#This code sorts it by years
+ref_asyl_grantedA_ByNationality <- read_excel("fy2019_table17d.xlsx")
+ref4x <- ref_asyl_grantedA_ByNationality
+ref4x <- ref4x[-c(1,2,4,13,121:125), ]
+names_ref4x <- ref4x$`Table 17.`
+ref4x <- ref4x[,-c(1)]
+ref4x <- t(ref4x)
+colnames(ref4x) <- names_ref4x
+colnames(ref4x)[1] <- "Year"
+colnames(ref4x)[115] <- "All Other Countries"
+ref4x[ref4x=="X"]<-"NA"
+ref4x[ref4x=="D"]<-"witheld"
+ref4x[ref4x=="-"]<-0
+#This code sorts it by Regions
+ref_asyl_grantedA_ByNationality <- read_excel("fy2019_table17d.xlsx")
+ref4t <- ref_asyl_grantedA_ByNationality
+ref4t <- ref4t[-c(1,2,4,13,121:125), ]
+names_ref4t <- ref4t[1,]
+colnames(ref4t) <- names_ref4t
+ref4t <- ref4t[-c(1),]
+ref4t[ref4t=="X"]<-"NA"
+ref4t[ref4t=="D"]<-"witheld"
+ref4t[ref4t=="-"]<-"0"
+ref4t[1,1] <- "Total Continent"
+ref4t[9,1] <- "Total Country"
+REF_AsyA_table <- ref4t
+#This code sorts it by continent
+REF_AstA_continent <- REF_AsyA_table %>% slice(1:8)
+#This code sorts it by country
+REF_AsyA_country <- REF_AsyA_table %>% slice(9:115)
+  
+#Defensive Asylums granted by Nationality from 2010 to 2019
+#This code sorts it by years
+ref_asyl_grantedD_ByNationality <- read_excel("fy2019_table19d.xlsx")
+ref5x <- ref_asyl_grantedD_ByNationality
+ref5x <- ref5x[-c(1,2,4,13,104:109), ]
+names_ref5x <- ref5x$`Table 19.`
+ref5x <- ref5x[,-c(1)]
+ref5x <- t(ref5x)
+colnames(ref5x) <- names_ref5x
+colnames(ref5x)[1] <- "Year"
+colnames(ref5x)[98] <- "All Other Countries"
+colnames(ref5x)[99] <- "Unknown"
+ref5x[ref5x=="X"]<-"NA"
+ref5x[ref5x=="D"]<-"witheld"
+ref5x[ref5x=="-"]<-0
+#This code sorts it by regions
+ref_asyl_grantedD_ByNationality <- read_excel("fy2019_table19d.xlsx")
+ref5t <- ref_asyl_grantedD_ByNationality
+ref5t <- ref5t[-c(1,2,4,13,104:109), ]
+names_ref5t <- ref5t[1,]
+colnames(ref5t) <- names_ref5t
+ref5t <- ref5t[-c(1),]
+ref4t[ref5t=="X"]<-"NA"
+ref5t[ref5t=="D"]<-"witheld"
+ref5t[ref5t=="-"]<-"0"
+ref5t[1,1] <- "Total Continent"
+ref5t[9,1] <- "Total Country"
+REF_AsyD_table <- ref5t
+#This code sorts it by continent
+REF_AsyD_continent <- REF_AsyD_table %>% slice(1:8)
+#This code sorts it by country
+REF_AsyD_country <- REF_AsyD_table %>% slice(9:99)
+
+
+#Naturalization Data
+#Naturalizations by Region of Birth from 2010 to 2019
+#This code sorts it by years
+nat_ByRegionBirth <- read_excel("fy2019_table21d.xlsx")
+nat2x <- nat_ByRegionBirth
+nat2x <- nat2x[-c(1,2,4,13,216:222), ]
+names_nat2x <- nat2x$`Table 21.`
+nat2x <- nat2x[,-c(1)]
+nat2x <- t(nat2x)
+colnames(nat2x) <- names_nat2x
+colnames(nat2x)[1] <- "Year"
+colnames(nat2x)[98] <- "All Other Countries"
+nat2x[nat2x=="X"]<-"NA"
+nat2x[nat2x=="D"]<-"witheld"
+nat2x[nat2x=="-"]<-0
+#This code sorts it by regions
+nat_ByRegionBirth <- read_excel("fy2019_table21d.xlsx")
+nat2t <- nat_ByRegionBirth
+nat2t <- nat2t[-c(1,2,4,13,216:222), ]
+names_nat2 <- nat2[1,]
+colnames(nat2t) <- names_nat2t
+nat2t <- nat2t[-c(1),]
+nat2t[nat2t=="X"]<-"NA"
+nat2t[nat2t=="D"]<-"witheld"
+nat2t[nat2t=="-"]<-"0"
+nat2t[1,1] <- "Total Continent"
+nat2t[9,1] <- "Total Country"
+NAT_Birth_table <- nat2t
+#This code sorts it by continent
+NAT_Birth_continent <- NAT_Birth_table %>% slice(1:8)
+#This code sorts it by country
+NAT_Birth_country <- NAT_Birth_table %>% slice(9:211)
+
+#Non-immigrants (Visa Recipients) Data
+#Visas granted by Country of Citizenship from 2010 to 2019
+#This code sorts it by years
+nonimg_ByRegionCitizenship <- read_excel("fy2019_table26.xlsx")
+nim1x <- nonimg_ByRegionCitizenship
+nim1x <- nim1x[-c(1,2,4,13,210:225), ]
+names_nim1x <- nim1x$`Table 26.`
+nim1x <- nim1x[,-c(1)]
+nim1x <- t(nim1x)
+colnames(nim1x) <- names_nim1x
+colnames(nim1x)[1] <- "Year"
+nim1x[nim1x=="X"]<-"NA"
+nim1x[nim1x=="D"]<-"witheld"
+nim1x[nim1x=="-"]<-0
+#This code sorts it by regions
+nonimg_ByRegionCitizenship <- read_excel("fy2019_table26.xlsx")
+nim1t <- nonimg_ByRegionCitizenship
+nim1t <- nim1t[-c(1,2,4,13,210:225), ]
+names_nim1t <- nim1t[1,]
+colnames(nim1t) <- names_nim1t
+nim1t <- nim1t[-c(1),]
+nim1t[nim1t=="X"]<-"NA"
+nim1t[nim1t=="D"]<-"witheld"
+nim1t[nim1t=="-"]<-"0"
+nim1t[1,1] <- "Total Continent"
+nim1t[9,1] <- "Total Country"
+NIM_Cit_table <- nim1t
+#This code sorts it by continent
+NIM_Cit_continent <- NIM_Cit_table %>% slice(1:8)
+#This code sorts it by country
+NIM_Cit_country <- NIM_Cit_table %>% slice(9:205)
+
+#Visas granted by last country of Residence from 2010 to 2019
+#This code sorts it by years
+nonimg_ByRegionResidence <- read_excel("fy2019_table27d.xlsx")
+nim2x <- nonimg_ByRegionResidence
+nim2x <- nim2x[-c(1,2,4,13,255:264), ]
+names_nim2x <- nim2x$`Table 27.`
+nim2x <- nim2x[,-c(1)]
+nim2x <- t(nim2x)
+colnames(nim2x) <- names_nim2x
+colnames(nim2x)[1] <- "Year"
+nim2x[nim2x=="X"]<-"NA"
+nim2x[nim2x=="D"]<-"witheld"
+nim2x[1,1]=2010
+#This code sorts it by regions
+nonimg_ByRegionResidence <- read_excel("fy2019_table27d.xlsx")
+nim2t <- nonimg_ByRegionResidence
+nim2t <- nim2t[-c(1,2,4,13,255:264), ]
+names_nim1t <- nim2t[1,]
+colnames(nim2t) <- names_nim2t
+nim2t <- nim2t[-c(1),]
+nim2t[nim2t=="X"]<-"NA"
+nim2t[nim2t=="D"]<-"witheld"
+nim2t[nim2t=="-"]<-"0"
+nim2t[1,1] <- "Total Continent"
+nim2t[9,1] <- "Total Country"
+NIM_Res_table <- nim2t
+#This code sorts it by continent
+NIM_Res_continent <- NIM_Res_table %>% slice(1:8)
+#This code sorts it by country
+NIM_Res_country <- NIM_Res_table %>% slice(9:250)
+
+#Aliens and Law Enforcement Data
+#'Alien' apprehendings by Nationality from 2010 to 2019
+#This code sorts it by years
+aliens_appreh_ByRegionNat  <- read_excel("fy2019_table34d.xlsx")
+enf2x <- aliens_appreh_ByRegionNat
+enf2x <- enf2x[-c(1,2,4,13,180:187), ]
+names_enf2x <- enf2x$`Table 34.`
+enf2x <- enf2x[,-c(1)]
+enf2x <- t(enf2x)
+colnames(enf2x) <- names_enf2x
+colnames(enf2x)[1] <- "Year"
+enf2x[1,1]=2010
+enf2x[8,1]=2016
+colnames(enf2x)[174] <- "All Other Countries"
+enf2x[enf2x=="X"]<-"NA"
+enf2x[enf2x=="D"]<-"witheld"
+enf2x[enf2x=="-"]<-0
+#This code sorts it by regions
+aliens_appreh_ByRegionNat  <- read_excel("fy2019_table34d.xlsx")
+enf2t <- aliens_appreh_ByRegionNat
+enf2t <- enf2t[-c(1,2,4,13,180:187), ]
+names_enf2t <- enf2t[1,]
+colnames(enf2t) <- names_nenf2t
+enf2t <- enf2t[-c(1),]
+enf2t[enf2t=="X"]<-"NA"
+enf2t[enf2t=="D"]<-"witheld"
+enf2t[enf2t=="-"]<-"0"
+enf2t[1,1] <- "Total Continent"
+enf2t[9,1] <- "Total Country"
+ENF_NatA_table <- enf2t
+#This code sorts it by continent
+ENF_NatA_continent <- ENF_NatA_table %>% slice(1:8)
+#This code sorts it by country
+ENF_NatA_country <- ENF_NatA_table %>% slice(9:175)
+
+#"Aliens' deemed inadmissible by Nationality from 2010 to 2019
+#This code sorts it by years
+aliens_inadmin_ByRegionNat <- read_excel("fy2019_table37d.xlsx")
+enf5x <- aliens_inadmin_ByRegionNat
+enf5x <- enf5x[-c(1,2,4,13,197:201), ]
+names_enf5x <- enf5x$`Table 37.`
+enf5x <- enf5x[,-c(1)]
+enf5x <- t(enf5x)
+colnames(enf5x) <- names_enf5x
+colnames(enf5x)[1] <- "Year"
+colnames(enf5x)[191] <- "All Other Countries"
+enf5x[enf5x=="D"]<-"witheld"
+enf5x[enf5x=="-"]<-0
+#This code sorts it by regions
+aliens_inadmin_ByRegionNat <- read_excel("fy2019_table37d.xlsx")
+enf5t <- aliens_inadmin_ByRegionNat
+enf5t <- enf5t[-c(1,2,4,13,197:201), ]
+names_enf5t <- enf5t[1,]
+colnames(enf5t) <- names_nenf5t
+enf5t <- enf5t[-c(1),]
+enf5t[enf5t=="X"]<-"NA"
+enf5t[enf5t=="D"]<-"witheld"
+enf5t[enf5t=="-"]<-"0"
+enf5t[1,1] <- "Total Continent"
+enf5t[9,1] <- "Total Country"
+ENF_NatI_table <- enf5t
+#This code sorts it by continent
+ENF_NatI_continent <- ENF_NatI_table %>% slice(1:8)
+#This code sorts it by country
+ENF_NatI_country <- ENF_NatI_table %>% slice(9:175)
+
+#'Alien' removals by Nationality from 2010 to 2019
+#This code sorts it by years
+aliens_remov_ByRegionNat <- read_excel("fy2019_table40d.xlsx")
+enf8x <- aliens_remov_ByRegionNat
+enf8x <- enf8x[-c(1,2,4,13,188:193), ]
+names_enf8x <- enf8x$`Table 40.`
+enf8x <- enf8x[,-c(1)]
+enf8x <- t(enf8x)
+colnames(enf8x) <- names_enf8x
+colnames(enf8x)[1] <- "Year"
+colnames(enf8x)[182] <- "All Other Countries"
+enf8x[enf8x=="D"]<-"witheld"
+enf8x[enf8x=="-"]<-0
+enf8x[7,1]=2016
+#This code sorts it by regions
+aliens_remov_ByRegionNat <- read_excel("fy2019_table40d.xlsx")
+enf8t <- aliens_remov_ByRegionNat
+enf8t <- enf8t[-c(1,2,4,13,188:193), ]
+names_enf5t <- enf8t[1,]
+colnames(enf8t) <- names_nenf8t
+enf8t <- enf8t[-c(1),]
+enf8t[enf8t=="X"]<-"NA"
+enf8t[enf8t=="D"]<-"witheld"
+enf8t[enf8t=="-"]<-"0"
+enf8t[1,1] <- "Total Continent"
+enf8t[9,1] <- "Total Country"
+ENF_NatR_table <- enf8t
+#This code sorts it by continent
+ENF_NatR_continent <- ENF_NatR_table %>% slice(1:8)
+#This code sorts it by country
+ENF_Natr_country <- ENF_NatR_table %>% slice(9:175)
+
+
+#'Alien' removals by Nationality and Crime Status from 2010 to 2019
+aliens_remov_byCrimS_RegionNat <- read_excel("fy2019_table41d.xlsx")
+enf9 <- aliens_remov_byCrimS_RegionNat
+
+#'Alien' removals by Nationality and Crime Status in 2010
+enf9_2010 <- enf9[1:4]
+enf9_2010 <- enf9_2010[-c(1:5,14,176:181), ]
+colnames(enf9_2010) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2010[enf9_2010=="D"]<-"witheld"
+enf9_2010[enf9_2010=="-"]<-"0"
+enf9_2010[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2011
+enf9_2011 <- enf9[1:7]
+enf9_2011 <- enf9_2011[-c(1:5,14,176:181),-c(2:4)]
+colnames(enf9_2011) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2011[enf9_2011=="D"]<-"witheld"
+enf9_2011[enf9_2011=="-"]<-"0"
+enf9_2011[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2012
+enf9_2012 <- enf9[1:10]
+enf9_2012 <- enf9_2012[-c(1:5,14,176:181),-c(2:7)]
+colnames(enf9_2012) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2012[enf9_2012=="D"]<-"witheld"
+enf9_2012[enf9_2012=="-"]<-"0"
+enf9_2012[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2013
+enf9_2013 <- enf9[1:13]
+enf9_2013 <- enf9_2013[-c(1:5,14,176:181),-c(2:10)]
+colnames(enf9_2013) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2013[enf9_2013=="D"]<-"witheld"
+enf9_2013[enf9_2013=="-"]<-"0"
+enf9_2013[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2014
+enf9_2014 <- enf9[1:16]
+enf9_2014 <- enf9_2014[-c(1:5,14,176:181),-c(2:13)]
+colnames(enf9_2014) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2014[enf9_2014=="D"]<-"witheld"
+enf9_2014[enf9_2014=="-"]<-"0"
+enf9_2014[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2015
+enf9_2015 <- enf9[1:19]
+enf9_2015 <- enf9_2015[-c(1:5,14,176:181),-c(2:16)]
+colnames(enf9_2015) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2015[enf9_2015=="D"]<-"witheld"
+enf9_2015[enf9_2015=="-"]<-"0"
+enf9_2015[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2016
+enf9_2016 <- enf9[1:22]
+enf9_2016 <- enf9_2016[-c(1:5,14,176:181),-c(2:19)]
+colnames(enf9_2016) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2016[enf9_2016=="D"]<-"witheld"
+enf9_2016[enf9_2016=="-"]<-"0"
+enf9_2016[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2017
+enf9_2017 <- enf9[1:25]
+enf9_2017 <- enf9_2017[-c(1:5,14,176:181),-c(2:21)]
+colnames(enf9_2017) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2017[enf9_2017=="D"]<-"witheld"
+enf9_2017[enf9_2017=="-"]<-"0"
+enf9_2017[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2018
+enf9_2018 <- enf9[1:28]
+enf9_2018 <- enf9_2018[-c(1:5,14,176:181),-c(2:24)]
+colnames(enf9_2018) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2018[enf9_2018=="D"]<-"witheld"
+enf9_2018[enf9_2018=="-"]<-"0"
+enf9_2018[168,1] <- "All Other Countries"
+
+#'Alien' removals by Nationality and Crime Status in 2019
+enf9_2019 <- enf9[1:31]
+enf9_2019 <- enf9_2019[-c(1:5,14,176:181),-c(2:27)]
+colnames(enf9_2011) <- c("Country","Total Alien Removals","Criminal Alien Removed","Non-Criminal Alien Removed")
+enf9_2019[enf9_2019=="D"]<-"witheld"
+enf9_2019[enf9_2019=="-"]<-"0"
+enf9_2019[168,1] <- "All Other Countries"
+
+```
+## 1. Table Creation
+ I then made simple tables with the different datasets that included State of Residence. I also used the last data set in the "Region" group, enf9 which had the number of alien removals by country and by criminal status for the fiscals years 2010 to 2019. After splitting the data by year, I made a graph for each year.
+
+```{r Table Creation, eval=FALSE}
+
+LPR_state_table %>%gt() %>%
+  tab_header( title = "PERSONS OBTAINING LAWFUL PERMANENT RESIDENT STATUS BY STATE OR TERRITORY OF RESIDENCE: FISCAL YEARS 2010 TO 2019")
+
+NAT_state_table %>%gt() %>%
+  tab_header( title = "NATURALIZATIONS BY STATE OR TERRITORY OF RESIDENCE: FISCAL YEARS 2010 TO 2019")
+
+enf9_2010 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2010")
+
+enf9_2011 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2011")
+
+enf9_2012 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2012")
+
+enf9_2013 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2013")
+
+enf9_2013 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2014")
+
+enf9_2015 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2015")
+
+enf9_2016 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2016")
+
+enf9_2017 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2017")
+
+enf9_2018 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2018")
+
+enf9_2019 %>% gt() %>% 
+  tab_header(title="Alien Removals by Country and Criminal Status in 2019")
+  
+```
+## 1. Graph Creation
+I then made graphs of the datasets that spanned over 20 years
+
+
+```{r Graph Creation, eval=FALSE}
+
+#Lawful Permanent Residents Data
+ggplot(data=LPR_years, aes(x=Year,y=`People Obtaining LPR Status`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("People Obtaining LPR Status") +
+  ggtitle("PERSONS OBTAINING LAWFUL PERMANENT RESIDENT STATUS: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+
+#Refugees and Asylees Data
+ggplot(data=REF, aes(x=Year,y=`Refugee Arrivals`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Refugee Arrivals") +
+  ggtitle("REFUGEE ARRIVALS: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+ggplot(data=REF, aes(x=Year,y=`Total Asylums Granted`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Total Asylums Granted") +
+  ggtitle("ASYLUM STATUS ARRIVALS: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+
+#Aliens and Law Enforcement Data
+ggplot(data=ENF_years, aes(x=Year,y=`Aliens Apprehended`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Total") +
+  ggtitle("ALIENS APPREHENDED: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+ggplot(data=ENF_years, aes(x=Year,y=`Aliens Determined Inadmissible`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Total") +
+  ggtitle("ALIENS DETERMINED INADMISSIBLE: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+ggplot(data=ENF_years, aes(x=Year,y=`Aliens Removals`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Total") +
+  ggtitle("ALIEN REMOVALS: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+
+ggplot(data=ENF_years, aes(x=Year,y=`Aliens Returned`)) + 
+  geom_point(color="yellow", size=3) +
+  xlab("Year") +
+  ylab("Total") +
+  ggtitle("ALIEN RETURNS: FISCAL YEARS 2000 TO 2019") +
+  theme_dark() 
+```
+
+## 1. Analysis
+  While looking at the graphs, we cans see that there was a sharp decline in immigration flux to the United States in the period right after 2001 and the presidential election of 2004. However there was also a decline of immigration flux after the 2016 presidential election, from which we cna infer that republican administrations could be more strict on immigration.
+  Something else that we can observe from both the graphs and the tables is that when it comes to 'Aliens" apprehending, removals, and returns, there is no clear trend as the numbers fluctuate throughout the years and mid presidencies. It seems that this trend is more related to each president and his policy, rather than a political party ideology
+  Finally, when it comes to accepting refugees and granting asylum status, it seems like numbers went way down after 2001, then gradually rose throughout the years and then significantly dropped around 2017-2018, whihc owuld have been when Donal Trump took office and started enacting his executive orders
+
+## 1. Conclusion
+  It seems that when it comes to immigration towards regarding the United States, the influx does not really decrease based on the presidency, it actually does seem to increase for some country of provenance as the years go by. What varies based on the presidency, is the number of Aslums granted and most importantly the treatment of 'Aliens' (or immigrants deemed 'non-legal'). 
+  
+  As we could have imagined, a traumatic event for the United States like 9/11 will affect those numbers in a negative way as xenophobia might run rampant and in the name of security, a higher scrutiny might be applied to all. But what is very surprising is that attitudes towards 'aliens' is not a partisan issue: as in both Republican presidents and the only Democrat President in the data have had similar numbers when it comes to the treatment of those "non-legal" immigrants. 
+  
+  However, it might not be fair to take the Data for one Democrat president and consider as a general trend for the entire party. Since we cannot utlize the data from previous years as it is missing and would not exactly correlate as it is not in the same context, the best solution would be take in account the data for the next presidency (which would be Democrat) and see whether this Democrat president follows in the footsteps of his direct predecessor, his last Democrat predecessor or instead follows a whole other trend. Those numbers will obviously be skewed because of the pandemic but we could try to adapt the data with a  model to see what it would have been without the pandemic.
